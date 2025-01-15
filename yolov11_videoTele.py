@@ -29,13 +29,17 @@ class TrafficDetector:
         self.last_notification_time = 0
         self.notification_cooldown = 300  # 5 minutes between notifications
 
-    def count_vehicles(self, detections):
+    def count_vehicles(self, result):
         """Count vehicles in detected objects"""
         vehicle_classes = ['car', 'truck', 'bus', 'motorcycle']
         count = 0
-        for detection in detections:
-            if detection.cls in vehicle_classes:
+        
+        # Iterate through the detected boxes
+        for box in result.boxes:
+            # Check if the class of the detection is a vehicle
+            if result.names[int(box.cls)] in vehicle_classes:
                 count += 1
+                
         return count
 
     def send_telegram_notification(self, frame, vehicle_count):
@@ -130,9 +134,9 @@ class TrafficDetector:
 
 def main():
     # Configuration
-    MODEL_PATH = "best.pt"  # or path to your custom trained model
-    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
-    CHAT_ID = "@trafficitera"
+    MODEL_PATH = "yolov8n.pt"  # or path to your custom trained model
+    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+    CHAT_ID = "YOUR_CHAT_ID"
     MIN_VEHICLES = 10  # Adjust this threshold based on your needs
     VIDEO_PATH = "path/to/your/traffic_video.mp4"  # Replace with your video path
 
