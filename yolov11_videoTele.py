@@ -138,7 +138,7 @@ def main():
     TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
     CHAT_ID = "YOUR_CHAT_ID"
     MIN_VEHICLES = 10  # Adjust this threshold based on your needs
-    VIDEO_PATH = "path/to/your/traffic_video.mp4"  # Replace with your video path
+    VIDEO_PATH = "video.mp4"  # Replace with your video path
 
     # Initialize and run detector
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, CHAT_ID, MIN_VEHICLES)
