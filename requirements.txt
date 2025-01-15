@@ -1,0 +1,15 @@
+ultralytics
+opencv-python
+numpy
+torch
+torchvision
+pillow
+python-dotenv
+tqdm
+pandas
+PyYAML
+requests
+scipy
+matplotlib
+seaborn
+python-telegram-bot
