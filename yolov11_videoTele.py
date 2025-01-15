@@ -134,9 +134,9 @@ class TrafficDetector:
 
 def main():
     # Configuration
-    MODEL_PATH = "yolov8n.pt"  # or path to your custom trained model
-    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-    CHAT_ID = "YOUR_CHAT_ID"
+    MODEL_PATH = "best.pt"  # or path to your custom trained model
+    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
+    CHAT_ID = "@trafficitera"
     MIN_VEHICLES = 10  # Adjust this threshold based on your needs
     VIDEO_PATH = "video.mp4"  # Replace with your video path
 

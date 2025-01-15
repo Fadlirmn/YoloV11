@@ -14,10 +14,10 @@ def predict_video(model_path, video_path, output_path=None, conf_threshold=0.25)
         conf_threshold (float): Confidence threshold for detections (0-1)
     """
     # Load the YOLOv8 model
-    model = YOLO(best.pt)
+    model = YOLO('best.pt')
     
     # Open the video file
-    cap = cv2.VideoCapture(video.mp4)
+    cap = cv2.VideoCapture('video.mp4')
     
     # Get video properties
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -47,7 +47,7 @@ def predict_video(model_path, video_path, output_path=None, conf_threshold=0.25)
             annotated_frame = results[0].plot()
             
             # Display the frame
-            cv2.imshow('YOLOv8 Detection', annotated_frame)
+            cv2.imshow('YOLOv11 Detection', annotated_frame)
             
             # Save the frame if output path is specified
             if output_path:
