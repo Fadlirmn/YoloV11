@@ -15,7 +15,14 @@ class TrafficDetector:
         chat_id: Telegram chat ID to send notifications
         min_vehicles: Minimum number of vehicles to consider as traffic jam
         """
-        self.model = YOLO(model_path)
+        # Force CPU-only mode for YOLO model
+        self.model = YOLO(model_path)  # Load the model
+        self.model.to("cpu")  # Ensure it runs on CPU
+
+        # Disable OpenCV GPU optimizations
+        cv2.setUseOptimized(False)  # Disable OpenCV optimizations
+        cv2.setNumThreads(1)  # Limit to 1 CPU thread (CPU-only mode)
+
         self.bot = telebot.TeleBot(telegram_token)
         self.chat_id = chat_id
         self.min_vehicles = min_vehicles
@@ -83,6 +90,9 @@ class TrafficDetector:
             if frame_number % 5 != 0:
                 continue
 
+            # Resize frame to lower resolution to reduce load
+            frame = cv2.resize(frame, (640, 480))  # Resize frame to 640x480
+
             # Run YOLOv8 detection
             results = self.model(frame, stream=True)
             
@@ -120,9 +130,9 @@ class TrafficDetector:
 
 def main():
     # Configuration
-    MODEL_PATH = "yolov8n.pt"  # or path to your custom trained model
-    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
-    CHAT_ID = "YOUR_CHAT_ID"
+    MODEL_PATH = "best.pt"  # or path to your custom trained model
+    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
+    CHAT_ID = "@trafficitera"
     MIN_VEHICLES = 10  # Adjust this threshold based on your needs
     VIDEO_PATH = "path/to/your/traffic_video.mp4"  # Replace with your video path
 
