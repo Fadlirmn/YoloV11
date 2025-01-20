@@ -131,11 +131,11 @@ class TrafficDetector:
         cv2.destroyAllWindows()
 
 def main():
-    MODEL_PATH = "/content/YoloV11/best.pt"
+    MODEL_PATH = "best.pt"
     TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
     CHAT_ID = "@trafficitera"
     MIN_VEHICLES = 10
-    VIDEO_PATH = "/content/YoloV11/video.mp4"
+    VIDEO_PATH = "video.mp4"
 
     # Initialize and run detector
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, CHAT_ID, MIN_VEHICLES)
