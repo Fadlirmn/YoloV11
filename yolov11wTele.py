@@ -15,6 +15,8 @@ class TelegramBot:
         self.bot = telebot.TeleBot(token)
         self.active_groups = set()
         self.min_vehicles = min_vehicles
+        self.last_vehicle_count = 0
+        self.last_detection_time = None
         self.setup_handlers()
 
     def setup_handlers(self):
@@ -28,7 +30,9 @@ class TelegramBot:
                     "/start - Start monitoring\n"
                     "/stop - Stop monitoring\n"
                     "/status - Check monitoring status\n"
-                    "/set_min_vehicles [number] - Set minimum vehicles threshold"
+                    "/current - View current traffic status\n"
+                    "/set_min_vehicles [number] - Set minimum vehicles threshold\n"
+                    "/help - Show all commands"
                 )
                 self.bot.reply_to(message, welcome_message)
 
@@ -40,10 +44,60 @@ class TelegramBot:
 
         @self.bot.message_handler(commands=['status'])
         def status(message):
-            status_message = "✅ Monitoring active" if message.chat.id in self.active_groups else "❌ Monitoring inactive"
+            status_message = (
+                "✅ Monitoring active\n"
+                f"🚗 Current threshold: {self.min_vehicles} vehicles"
+            ) if message.chat.id in self.active_groups else "❌ Monitoring inactive"
             self.bot.reply_to(message, status_message)
 
+        @self.bot.message_handler(commands=['current'])
+        def current(message):
+            if message.chat.id not in self.active_groups:
+                self.bot.reply_to(message, "❌ Monitoring is not active in this group.")
+                return
+
+            traffic_status = "🔴 Heavy" if self.last_vehicle_count >= self.min_vehicles else "🟢 Normal"
+            detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection yet"
+            
+            status_message = (
+                "🔄 Current Traffic Status\n"
+                f"🚦 Status: {traffic_status}\n"
+                f"🚗 Vehicles detected: {self.last_vehicle_count}\n"
+                f"⚠️ Alert threshold: {self.min_vehicles}\n"
+                f"⏰ Last detection: {detection_time}"
+            )
+            self.bot.reply_to(message, status_message)
+
+        @self.bot.message_handler(commands=['set_min_vehicles'])
+        def set_min_vehicles(message):
+            try:
+                new_threshold = int(message.text.split()[1])
+                if new_threshold < 1:
+                    raise ValueError
+                self.min_vehicles = new_threshold
+                self.bot.reply_to(message, f"✅ Alert threshold updated to {new_threshold} vehicles")
+            except (IndexError, ValueError):
+                self.bot.reply_to(message, "❌ Please provide a valid number (e.g., /set_min_vehicles 10)")
+
+        @self.bot.message_handler(commands=['help'])
+        def help(message):
+            help_message = (
+                "📋 Available Commands:\n\n"
+                "🟢 /start - Begin traffic monitoring\n"
+                "🔴 /stop - Stop monitoring\n"
+                "ℹ️ /status - Check monitoring status\n"
+                "🔄 /current - View real-time traffic status\n"
+                "⚙️ /set_min_vehicles [number] - Set vehicle threshold\n"
+                "❓ /help - Show this message"
+            )
+            self.bot.reply_to(message, help_message)
+
+    def update_status(self, vehicle_count: int):
+        self.last_vehicle_count = vehicle_count
+        self.last_detection_time = datetime.now()
+
     def send_notification(self, image_path: str, vehicle_count: int):
+        self.update_status(vehicle_count)
         message = (
             f"🚨 Traffic Jam Detected!\n"
             f"📍 Vehicle Count: {vehicle_count}\n"
@@ -60,8 +114,7 @@ class TelegramBot:
     def start_polling(self):
         self.bot.polling(none_stop=True)
 
-def process_frame(frame_data: Tuple[np.ndarray, int, int, str, YOLO]) -> Tuple[int, str, int]:
-    """Process a single frame"""
+def process_frame(frame_data: Tuple[np.ndarray, int, int, str]) -> Tuple[int, str, int]:
     frame, frame_number, total_frames, model_path = frame_data
     model = YOLO(model_path)
     model.to("cpu")
@@ -87,7 +140,6 @@ def process_frame(frame_data: Tuple[np.ndarray, int, int, str, YOLO]) -> Tuple[i
             2
         )
 
-    # Save frame to temporary file
     temp_image = f"frame_{frame_number}.jpg"
     cv2.imwrite(temp_image, annotated_frame)
     
@@ -100,7 +152,6 @@ class TrafficDetector:
         self.notification_cooldown = 300
         self.last_notification_time = 0
         
-        # Initialize Telegram bot in a separate thread
         self.telegram_bot = TelegramBot(telegram_token, min_vehicles)
         self.bot_thread = Thread(target=self.telegram_bot.start_polling)
         self.bot_thread.daemon = True
@@ -120,7 +171,6 @@ class TrafficDetector:
         print(f"FPS: {fps}")
         print(f"Total frames: {total_frames}")
 
-        # Initialize multiprocessing pool
         num_processes = mp.cpu_count() - 1
         pool = mp.Pool(processes=num_processes)
         
@@ -136,21 +186,19 @@ class TrafficDetector:
             if frame_number % batch_size != 0:
                 continue
 
-            # Process frame asynchronously
             frame_data = (frame, frame_number, total_frames, self.model_path)
             result = pool.apply_async(process_frame, (frame_data,))
             
             try:
                 frame_num, temp_image_path, vehicle_count = result.get()
+                self.telegram_bot.update_status(vehicle_count)
                 
-                # Check for traffic jam and send notification
                 current_time = time.time()
                 if (vehicle_count >= self.min_vehicles and 
                     current_time - self.last_notification_time >= self.notification_cooldown):
                     self.telegram_bot.send_notification(temp_image_path, vehicle_count)
                     self.last_notification_time = current_time
                 
-                # Clean up temporary image
                 if os.path.exists(temp_image_path):
                     os.remove(temp_image_path)
                     
@@ -162,7 +210,7 @@ class TrafficDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-def main():
+if __name__ == "__main__":
     MODEL_PATH = "best.pt"
     TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
     MIN_VEHICLES = 10
@@ -170,6 +218,3 @@ def main():
 
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, MIN_VEHICLES)
     detector.process_video(VIDEO_PATH)
-
-if __name__ == "__main__":
-    main()
