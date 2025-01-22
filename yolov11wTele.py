@@ -180,9 +180,9 @@ class TrafficDetector:
 
 if __name__ == "__main__":
     MODEL_PATH = "best.pt"
-    TELEGRAM_TOKEN = "your_telegram_token"
+    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
     MIN_VEHICLES = 10
-    VIDEO_PATH = "traffic.mp4"
+    VIDEO_PATH = "video.mp4"
 
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, MIN_VEHICLES)
     try:
