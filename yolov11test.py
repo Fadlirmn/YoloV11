@@ -225,7 +225,7 @@ class TrafficDetector:
 
 def main():
     MODEL_PATH = "best.pt"
-    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
     MIN_VEHICLES = 10
     VIDEO_PATH = "video.mp4"
 
