@@ -7,6 +7,7 @@ import time
 import os
 import multiprocessing as mp
 from threading import Thread
+import RPi.GPIO as GPIO  # Added for GPIO rain sensor support
 
 class TelegramBot:
     def __init__(self, token: str, min_vehicles: int = 10):
@@ -16,6 +17,7 @@ class TelegramBot:
         self.last_vehicle_count = 0
         self.last_detection_time = None
         self.latest_frame_path = None
+        self.is_rain = False
         self.is_running = True
         self.setup_handlers()
 
@@ -31,7 +33,8 @@ class TelegramBot:
                     "/status - Check status\n"
                     "/current - View traffic status\n"
                     "/latest - Show latest detection\n"
-                    "/set_min_vehicles [number] - Set threshold"
+                    "/set_min_vehicles [number] - Set threshold\n"
+                    "/rain_status - Check current rain status"
                 )
                 self.bot.reply_to(message, welcome_message)
 
@@ -53,10 +56,12 @@ class TelegramBot:
                 return
 
             traffic_status = "🔴 Heavy" if self.last_vehicle_count >= self.min_vehicles else "🟢 Normal"
+            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
             detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection"
             
             status_message = (
                 f"🚦 Status: {traffic_status}\n"
+                f"🌈 Weather: {rain_status}\n"
                 f"🚗 Vehicles: {self.last_vehicle_count}\n"
                 f"⚠️ Threshold: {self.min_vehicles}\n"
                 f"⏰ Updated: {detection_time}"
@@ -70,7 +75,12 @@ class TelegramBot:
                 return
 
             detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection"
-            status_message = f"🚗 Vehicles: {self.last_vehicle_count}\n⏰ Time: {detection_time}"
+            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            status_message = (
+                f"🚗 Vehicles: {self.last_vehicle_count}\n"
+                f"🌈 Weather: {rain_status}\n"
+                f"⏰ Time: {detection_time}"
+            )
             
             try:
                 with open(self.latest_frame_path, 'rb') as photo:
@@ -88,12 +98,10 @@ class TelegramBot:
             except:
                 self.bot.reply_to(message, "❌ Invalid number")
 
-    def update_status(self, vehicle_count: int, frame_path: str):
-        self.last_vehicle_count = vehicle_count
-        self.last_detection_time = datetime.now()
-        if self.latest_frame_path and os.path.exists(self.latest_frame_path):
-            os.remove(self.latest_frame_path)
-        self.latest_frame_path = frame_path
+        @self.bot.message_handler(commands=['rain_status'])
+        def rain_status(message):
+            rain_message = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            self.bot.reply_to(message, rain_message)
 
     def send_notification(self, image_path: str, vehicle_count: int):
         self.update_status(vehicle_count, image_path)
