@@ -193,7 +193,7 @@ class TrafficDetector:
     def __init__(self, model_path: str, telegram_token: str, min_vehicles: int = 10):
         self.model_path = model_path
         self.min_vehicles = min_vehicles
-        self.notification_cooldown = 300  # 5 minutes
+        self.notification_cooldown = 30  # 30s
         self.last_notification_time = 0
         self.is_running = True
         
