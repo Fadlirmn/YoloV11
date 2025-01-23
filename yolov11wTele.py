@@ -28,10 +28,10 @@ class TelegramBot:
                     "🚦 Traffic Monitoring Bot activated!\n\n"
                     "/start - Start monitoring\n"
                     "/stop - Stop monitoring\n"
-                    "/status - Check status\n"
-                    "/current - View traffic status\n"
+                    "/status - Check monitoring status\n"
+                    "/current - View current traffic status\n"
                     "/latest - Show latest detection\n"
-                    "/set_min_vehicles [number] - Set threshold"
+                    "/help - Show all commands"
                 )
                 self.bot.reply_to(message, welcome_message)
 
