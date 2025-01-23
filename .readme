@@ -1,4 +1,115 @@
-#install requrements
+# Traffic Monitoring Telegram Bot
+
+## Overview
+This application is a sophisticated traffic monitoring system using computer vision and Telegram bot integration, designed to detect vehicle counts and provide real-time notifications.
+
+## Features
+- Vehicle detection using YOLO object detection
+- Telegram bot integration
+- Rain sensor support
+- Configurable vehicle count threshold
+- Real-time traffic status updates
+
+## System Requirements
+- Raspberry Pi
+- Camera module
+- Rain sensor (optional)
+- Python 3.7+
+
+## Dependencies
+```
+opencv-python
+ultralytics
+telebot
+RPi.GPIO
+numpy
+```
+
+## Installation
+1. Install dependencies:
+```bash
+pip install opencv-python ultralytics pyTelegramBotAPI numpy RPi.GPIO
+```
+
+2. Set up Telegram Bot
+- Create a bot via BotFather on Telegram
+- Obtain API token
+
+## Configuration
+```python
+MODEL_PATH = "best.pt"  # YOLO model
+TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+MIN_VEHICLES = 10  # Threshold for traffic jam notification
+VIDEO_PATH = "video.mp4"  # Input video source
+```
+
+## Key Components
+
+### TelegramBot Class
+- Manages Telegram bot interactions
+- Handles commands:
+  - `/start`: Activate monitoring
+  - `/stop`: Deactivate monitoring
+  - `/status`: Check current status
+  - `/current`: View traffic details
+  - `/latest`: Show latest detection
+  - `/set_min_vehicles`: Adjust vehicle threshold
+  - `/rain_status`: Check weather condition
+
+### TrafficDetector Class
+- Processes video stream
+- Detects vehicles
+- Sends notifications on traffic jams
+
+### Main Workflow
+1. Load YOLO model
+2. Initialize Telegram bot
+3. Process video frames
+4. Detect vehicles
+5. Send notifications if threshold exceeded
+
+## GPIO Rain Sensor Integration
+- Uses GPIO pin 17 for rain detection
+- Provides weather status alongside traffic information
+
+## Error Handling
+- Graceful video stream restart
+- Exception handling for frame processing
+- GPIO error management
+
+## Performance Optimization
+- Process every 5th frame
+- 5-minute notification cooldown
+- Multithreaded bot polling
+
+## Security Considerations
+- Use environment variables for tokens
+- Implement rate limiting
+- Secure GPIO pin configurations
+
+## Deployment
+```bash
+# Run with sudo for GPIO access
+sudo python3 traffic_monitor.py
+```
+##install requirements
 
 'pip install -r requirements.txt'
 #run 'yolov11.py'
+
+## Customization
+- Adjust `MIN_VEHICLES` for sensitivity
+- Modify vehicle detection classes
+- Configure notification intervals
+
+## Troubleshooting
+- Ensure camera permissions
+- Check Telegram bot token
+- Verify GPIO library installation
+- Validate video source
+
+## Future Enhancements
+- Multiple camera support
+- Advanced weather integration
+- Machine learning-based traffic prediction
+```
