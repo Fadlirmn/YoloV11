@@ -120,15 +120,28 @@ class TelegramBot:
             except Exception as e:
                 self.bot.reply_to(message, f"Error: {e}")
 
-        @self.bot.message_handler(commands=['set_min_vehicles'])
-        def set_min_vehicles(message):
-            try:
-                new_threshold = int(message.text.split()[1])
-                if new_threshold < 1: raise ValueError
-                self.min_vehicles = new_threshold
-                self.bot.reply_to(message, f"✅ Threshold: {new_threshold}")
-            except:
-                self.bot.reply_to(message, "❌ Invalid number")
+            @self.bot.message_handler(commands=['set_min_vehicles'])
+            def set_min_vehicles(message):
+                try:
+                    # Split the message and get the second part (index 1)
+                    parts = message.text.split()
+                    if len(parts) < 2:
+                        self.bot.reply_to(message, "❌ Please provide a number")
+                        return
+
+                    # Attempt to convert to integer
+                    new_threshold = int(parts[1])
+                    
+                    if new_threshold < 1: 
+                        raise ValueError("Threshold must be at least 1")
+                    
+                    self.min_vehicles = new_threshold
+                    self.bot.reply_to(message, f"✅ Threshold set to: {new_threshold}")
+                
+                except ValueError:
+                    self.bot.reply_to(message, "❌ Invalid number. Please enter a valid integer.")
+                except Exception as e:
+                    self.bot.reply_to(message, f"❌ Error: {str(e)}")
 
         @self.bot.message_handler(commands=['rain_status'])
         def rain_status(message):
