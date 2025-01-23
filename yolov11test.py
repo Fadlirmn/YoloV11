@@ -128,16 +128,22 @@ class TelegramBot:
             rain_message = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
             self.bot.reply_to(message, rain_message)
 
-    def send_notification(self, image_path: str, vehicle_count: int):
-        self.update_status(vehicle_count, image_path)
-        message = f"🚨 Traffic Jam!\n📍 Vehicles: {vehicle_count}\n⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        
-        for group_id in self.active_groups:
-            try:
-                with open(image_path, 'rb') as photo:
-                    self.bot.send_photo(group_id, photo, caption=message)
-            except Exception as e:
-                print(f"Error sending to group {group_id}: {e}")
+        def send_notification(self, image_path: str, vehicle_count: int):
+            self.update_status(vehicle_count, image_path)
+            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            message = (
+                f"🚨 Traffic Jam!\n"
+                f"📍 Vehicles: {vehicle_count}\n"
+                f"🌈 Weather: {rain_status}\n"
+                f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            
+            for group_id in self.active_groups:
+                try:
+                    with open(image_path, 'rb') as photo:
+                        self.bot.send_photo(group_id, photo, caption=message)
+                except Exception as e:
+                    print(f"Error sending to group {group_id}: {e}")
 
     def start_polling(self):
         self.bot.polling(none_stop=True)
