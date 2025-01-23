@@ -5,7 +5,9 @@ import telebot
 from datetime import datetime
 import time
 import os
-import RPi.GPIO as GPIO
+import multiprocessing as mp
+from threading import Thread
+import RPi.GPIO as GPIO  # Added for GPIO rain sensor support
 
 def setup_gpio():
     """Initialize GPIO settings for Raspberry Pi"""
