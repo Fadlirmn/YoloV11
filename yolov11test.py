@@ -19,6 +19,15 @@ class TelegramBot:
         self.latest_frame_path = None
         self.is_rain = False
         self.is_running = True
+        
+        # GPIO Setup for Rain Sensor
+        try:
+            GPIO.setmode(GPIO.BCM)
+            self.rain_pin = 17  # GPIO pin for rain sensor
+            GPIO.setup(self.rain_pin, GPIO.IN)
+        except Exception as e:
+            print(f"GPIO Setup Error: {e}")
+        
         self.setup_handlers()
 
     def update_status(self, vehicle_count: int, image_path: str):
@@ -28,10 +37,8 @@ class TelegramBot:
         self.latest_frame_path = image_path
 
         try:
-            GPIO.setmode(GPIO.BCM)
-            rain_pin = 17  # Example GPIO pin for rain sensor
-            GPIO.setup(rain_pin, GPIO.IN)
-            self.is_rain = GPIO.input(rain_pin) == GPIO.LOW
+            # Check Rain Sensor Status
+            self.is_rain = GPIO.input(self.rain_pin) == GPIO.LOW
         except Exception as e:
             print(f"Rain sensor error: {e}")
             self.is_rain = False
@@ -70,10 +77,6 @@ class TelegramBot:
                 self.bot.reply_to(message, "❌ Not active.")
                 return
 
-            if not self.latest_frame_path or not os.path.exists(self.latest_frame_path):
-                self.bot.reply_to(message, "Belum ada data deteksi.")
-                return
-
             traffic_status = "🔴 Heavy" if self.last_vehicle_count >= self.min_vehicles else "🟢 Normal"
             rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
             detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection"
@@ -85,13 +88,7 @@ class TelegramBot:
                 f"⚠️ Threshold: {self.min_vehicles}\n"
                 f"⏰ Updated: {detection_time}"
             )
-            
-            try:
-                with open(self.latest_frame_path, 'rb') as photo:
-                    self.bot.send_photo(message.chat.id, photo, caption=status_message)
-            except Exception as e:
-                self.bot.reply_to(message, f"Error: {e}")
-
+            self.bot.reply_to(message, status_message)
 
         @self.bot.message_handler(commands=['latest'])
         def latest(message):
@@ -128,48 +125,52 @@ class TelegramBot:
             rain_message = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
             self.bot.reply_to(message, rain_message)
 
-        def send_notification(self, image_path: str, vehicle_count: int):
-            self.update_status(vehicle_count, image_path)
-            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
-            message = (
-                f"🚨 Traffic Jam!\n"
-                f"📍 Vehicles: {vehicle_count}\n"
-                f"🌈 Weather: {rain_status}\n"
-                f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-            
-            for group_id in self.active_groups:
-                try:
-                    with open(image_path, 'rb') as photo:
-                        self.bot.send_photo(group_id, photo, caption=message)
-                except Exception as e:
-                    print(f"Error sending to group {group_id}: {e}")
+    def send_notification(self, image_path: str, vehicle_count: int):
+        self.update_status(vehicle_count, image_path)
+        rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+        message = (
+            f"🚨 Traffic Jam!\n"
+            f"📍 Vehicles: {vehicle_count}\n"
+            f"🌈 Weather: {rain_status}\n"
+            f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        
+        for group_id in self.active_groups:
+            try:
+                with open(image_path, 'rb') as photo:
+                    self.bot.send_photo(group_id, photo, caption=message)
+            except Exception as e:
+                print(f"Error sending to group {group_id}: {e}")
 
     def start_polling(self):
         self.bot.polling(none_stop=True)
 
 def process_frame(frame, frame_number: int, model_path: str) -> tuple:
-    model = YOLO(model_path)
-    frame = cv2.resize(frame, (640, 480))
-    results = model(frame, stream=True)
-    
-    for result in results:
-        vehicle_classes = ['car', 'truck', 'bus', 'motorcycle']
-        vehicle_count = sum(1 for box in result.boxes if result.names[int(box.cls)] in vehicle_classes)
-        annotated_frame = result.plot()
-        cv2.putText(annotated_frame, f"Vehicles: {vehicle_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    try:
+        model = YOLO(model_path)
+        frame = cv2.resize(frame, (640, 480))
+        results = model(frame, stream=True)
+        
+        for result in results:
+            vehicle_classes = ['car', 'truck', 'bus', 'motorcycle']
+            vehicle_count = sum(1 for box in result.boxes if result.names[int(box.cls)] in vehicle_classes)
+            annotated_frame = result.plot()
+            cv2.putText(annotated_frame, f"Vehicles: {vehicle_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        temp_image = f"frame_{frame_number}.jpg"
-        cv2.imwrite(temp_image, annotated_frame)
-        return temp_image, vehicle_count
-    
-    return None, 0
+            temp_image = f"frame_{frame_number}.jpg"
+            cv2.imwrite(temp_image, annotated_frame)
+            return temp_image, vehicle_count
+        
+        return None, 0
+    except Exception as e:
+        print(f"Frame processing error: {e}")
+        return None, 0
 
 class TrafficDetector:
     def __init__(self, model_path: str, telegram_token: str, min_vehicles: int = 10):
         self.model_path = model_path
         self.min_vehicles = min_vehicles
-        self.notification_cooldown = 300
+        self.notification_cooldown = 300  # 5 minutes
         self.last_notification_time = 0
         self.is_running = True
         
@@ -180,23 +181,23 @@ class TrafficDetector:
 
     def process_video(self, video_path: str):
         while self.is_running:
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                print(f"Error opening video: {video_path}")
-                return
-
-            frame_number = 0
-            
-            while cap.isOpened() and self.is_running:
-                ret, frame = cap.read()
-                if not ret:
+            try:
+                cap = cv2.VideoCapture(video_path)
+                if not cap.isOpened():
+                    print(f"Error opening video: {video_path}")
                     break
 
-                frame_number += 1
-                if frame_number % 5 != 0:  # Process every 5th frame
-                    continue
+                frame_number = 0
+                
+                while cap.isOpened() and self.is_running:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
 
-                try:
+                    frame_number += 1
+                    if frame_number % 5 != 0:  # Process every 5th frame
+                        continue
+
                     temp_image_path, vehicle_count = process_frame(frame, frame_number, self.model_path)
                     if temp_image_path:
                         self.telegram_bot.update_status(vehicle_count, temp_image_path)
@@ -206,20 +207,25 @@ class TrafficDetector:
                             current_time - self.last_notification_time >= self.notification_cooldown):
                             self.telegram_bot.send_notification(temp_image_path, vehicle_count)
                             self.last_notification_time = current_time
-                            
-                except Exception as e:
-                    print(f"Error processing frame {frame_number}: {e}")
 
-            cap.release()
-            print("Video ended, restarting...")
-            time.sleep(1)  # Wait before restarting
+                cap.release()
+                print("Video ended, restarting...")
+                time.sleep(1)  # Wait before restarting
+            
+            except Exception as e:
+                print(f"Video processing error: {e}")
+                time.sleep(5)  # Wait before retry
 
     def stop(self):
         self.is_running = False
+        try:
+            GPIO.cleanup()  # Clean up GPIO
+        except:
+            pass
 
-if __name__ == "__main__":
+def main():
     MODEL_PATH = "best.pt"
-    TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
+    TELEGRAM_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
     MIN_VEHICLES = 10
     VIDEO_PATH = "video.mp4"
 
@@ -229,3 +235,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Stopping...")
         detector.stop()
+    finally:
+        GPIO.cleanup()  # Ensure GPIO is cleaned up
+
+if __name__ == "__main__":
+    main()
