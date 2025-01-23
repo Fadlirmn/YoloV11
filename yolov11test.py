@@ -5,12 +5,28 @@ import telebot
 from datetime import datetime
 import time
 import os
-import multiprocessing as mp
-from threading import Thread
 import RPi.GPIO as GPIO
+
+def setup_gpio():
+    """Initialize GPIO settings for Raspberry Pi"""
+    try:
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+        
+        # Rain sensor pin setup
+        rain_pin = 17
+        GPIO.setup(rain_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        
+        return rain_pin
+    except Exception as e:
+        print(f"GPIO Setup Error: {e}")
+        return None
 
 class TelegramBot:
     def __init__(self, token: str, min_vehicles: int = 10):
+        # GPIO Setup
+        self.rain_pin = setup_gpio()
+        
         self.bot = telebot.TeleBot(token)
         self.active_groups = set()
         self.min_vehicles = min_vehicles
@@ -19,14 +35,6 @@ class TelegramBot:
         self.latest_frame_path = None
         self.is_rain = False
         self.is_running = True
-        
-        # GPIO Setup for Rain Sensor
-        try:
-            GPIO.setmode(GPIO.BCM)
-            self.rain_pin = 17  # GPIO pin for rain sensor
-            GPIO.setup(self.rain_pin, GPIO.IN)
-        except Exception as e:
-            print(f"GPIO Setup Error: {e}")
         
         self.setup_handlers()
 
@@ -226,8 +234,11 @@ class TrafficDetector:
 def main():
     MODEL_PATH = "best.pt"
     TELEGRAM_TOKEN = "7029178812:AAF3JlXBlNsVKcG34Dr0G4PDDb3jD0MqD9g"
-    MIN_VEHICLES = 10
+    MIN_VEHICLES = 8
     VIDEO_PATH = "video.mp4"
+
+    # Ensure GPIO is set up before starting
+    setup_gpio()
 
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, MIN_VEHICLES)
     try:
