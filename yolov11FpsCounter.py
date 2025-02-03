@@ -39,7 +39,99 @@ def process_frame(frame, frame_number: int, model_path: str) -> tuple:
 
 class TelegramBot:
     def __init__(self, token: str, min_vehicles: int = 10):
-        # ... (bagian lain tetap sama)
+        self.bot = telebot.TeleBot(token)
+        self.active_groups = set()
+        self.min_vehicles = min_vehicles
+        self.last_vehicle_count = 0
+        self.last_detection_time = None
+        self.latest_frame_path = None
+        self.is_rain = False
+        self.is_running = True
+        self.setup_handlers()
+
+    def setup_handlers(self):
+        @self.bot.message_handler(commands=['start'])
+        def start(message):
+            if message.chat.type in ['group', 'supergroup']:
+                self.active_groups.add(message.chat.id)
+                welcome_message = (
+                    "🚦 Traffic Monitoring Bot activated!\n\n"
+                    "/start - Start monitoring\n"
+                    "/stop - Stop monitoring\n"
+                    "/status - Check monitoring status\n"
+                    "/current - View current traffic status\n"
+                    "/latest - Show latest detection\n"
+                    "/help - Show all commands\n"
+                    "/set_min_vehicles [number] - Set threshold\n"
+                    "/rain_status - Check current rain status"
+                )
+                self.bot.reply_to(message, welcome_message)
+
+        @self.bot.message_handler(commands=['stop'])
+        def stop(message):
+            if message.chat.id in self.active_groups:
+                self.active_groups.remove(message.chat.id)
+                self.bot.reply_to(message, "❌ Monitoring stopped.")
+
+        @self.bot.message_handler(commands=['status'])
+        def status(message):
+            status_message = f"✅ Monitoring active\n🚗 Threshold: {self.min_vehicles}" if message.chat.id in self.active_groups else "❌ Inactive"
+            self.bot.reply_to(message, status_message)
+
+        @self.bot.message_handler(commands=['current'])
+        def current(message):
+            if message.chat.id not in self.active_groups:
+                self.bot.reply_to(message, "❌ Not active.")
+                return
+
+            traffic_status = "🔴 Heavy" if self.last_vehicle_count >= self.min_vehicles else "🟢 Normal"
+            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection"
+            
+            status_message = (
+                f"🚦 Status: {traffic_status}\n"
+                f"🌈 Weather: {rain_status}\n"
+                f"🚗 Vehicles: {self.last_vehicle_count}\n"
+                f"⚠️ Threshold: {self.min_vehicles}\n"
+                f"⏰ Updated: {detection_time}"
+            )
+            self.bot.reply_to(message, status_message)
+
+        @self.bot.message_handler(commands=['latest'])
+        def latest(message):
+            if message.chat.id not in self.active_groups or not self.latest_frame_path or not os.path.exists(self.latest_frame_path):
+                self.bot.reply_to(message, "No data available.")
+                return
+
+            detection_time = self.last_detection_time.strftime('%Y-%m-%d %H:%M:%S') if self.last_detection_time else "No detection"
+            rain_status = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            status_message = (
+                f"🚗 Vehicles: {self.last_vehicle_count}\n"
+                f"🌈 Weather: {rain_status}\n"
+                f"⏰ Time: {detection_time}"
+            )
+            
+            try:
+                with open(self.latest_frame_path, 'rb') as photo:
+                    self.bot.send_photo(message.chat.id, photo, caption=status_message)
+            except Exception as e:
+                self.bot.reply_to(message, f"Error: {e}")
+
+        @self.bot.message_handler(commands=['set_min_vehicles'])
+        def set_min_vehicles(message):
+            try:
+                new_threshold = int(message.text.split()[1])
+                if new_threshold < 1: raise ValueError
+                self.min_vehicles = new_threshold
+                self.bot.reply_to(message, f"✅ Threshold: {new_threshold}")
+            except:
+                self.bot.reply_to(message, "❌ Invalid number")
+
+        @self.bot.message_handler(commands=['rain_status'])
+        def rain_status(message):
+            rain_message = "🌧️ Rain Detected" if self.is_rain else "☀️ No Rain"
+            self.bot.reply_to(message, rain_message)
+
 
     def send_notification(self, frame_bytes: io.BytesIO, vehicle_count: int, custom_message: str = None):
         self.update_status(vehicle_count, None)
@@ -53,7 +145,16 @@ class TelegramBot:
 
 class TrafficDetector:
     def __init__(self, model_path: str, telegram_token: str, min_vehicles: int = 10):
-        # ... (bagian lain tetap sama)
+        self.model_path = model_path
+        self.min_vehicles = min_vehicles
+        self.notification_cooldown = 300
+        self.last_notification_time = 0
+        self.is_running = True
+        
+        self.telegram_bot = TelegramBot(telegram_token, min_vehicles)
+        self.bot_thread = Thread(target=self.telegram_bot.start_polling)
+        self.bot_thread.daemon = True
+        self.bot_thread.start()
 
     def process_video(self, video_path: str):
         while self.is_running:
@@ -114,7 +215,8 @@ class TrafficDetector:
             print("Video ended, restarting...")
             time.sleep(1)  # Wait before restarting
 
-    # ... (bagian lain tetap sama)
+    def stop(self):
+        self.is_running = False
 
 if __name__ == "__main__":
     MODEL_PATH = "best.pt"
