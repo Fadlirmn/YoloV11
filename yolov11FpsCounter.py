@@ -33,12 +33,10 @@ class TelegramBot:
                     "/status - Check monitoring status\n"
                     "/current - View current traffic status\n"
                     "/latest - Show latest detection\n"
-<<<<<<< HEAD
-                    "/help - Show all commands"
-=======
+                    "/help - Show all commands\n"
                     "/set_min_vehicles [number] - Set threshold\n"
                     "/rain_status - Check current rain status"
->>>>>>> refs/remotes/origin/master
+
                 )
                 self.bot.reply_to(message, welcome_message)
 
