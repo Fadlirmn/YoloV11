@@ -141,5 +141,5 @@ def main():
     detector = TrafficDetector(MODEL_PATH, TELEGRAM_TOKEN, CHAT_ID, MIN_VEHICLES)
     detector.process_video(VIDEO_PATH)
 
-if __name__ == "__main__":
+if __name__ == "__main__":2
     main()
