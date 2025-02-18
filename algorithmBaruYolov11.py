@@ -4,13 +4,16 @@ from ultralytics import YOLO
 import torch
 
 class TrafficCongestionDetector:
-    def __init__(self, model_path, video_source=0):
+    def __init__(self, model_path, video_source=0, custom_boundaries=None):
         # Inisialisasi model YOLO
         self.model = YOLO(model_path)
         self.video_source = video_source
         
+        # Tambahkan custom boundaries
+        self.custom_boundaries = custom_boundaries
+        
         # Kelas yang akan dideteksi (sesuaikan dengan model YOLO Anda)
-        self.vehicle_classes = ['car', 'truck', 'bus', 'motorcycle']
+        self.vehicle_classes = ['car', 'motorcycle']
         
         # Threshold untuk menentukan tingkat kemacetan
         self.congestion_thresholds = {
@@ -68,6 +71,18 @@ class TrafficCongestionDetector:
             }
             
         return lane_congestion
+
+    def get_percentage_boundaries(self, width, percentages):
+        """
+        Membuat boundaries berdasarkan persentase dari lebar frame
+        """
+        boundaries = []
+        current_x = 0
+        for percentage in percentages:
+            next_x = int(current_x + (width * percentage / 100))
+            boundaries.append((current_x, next_x))
+            current_x = next_x
+        return boundaries
     
     def process_frame(self, frame):
         """
@@ -75,13 +90,22 @@ class TrafficCongestionDetector:
         """
         height, width = frame.shape[:2]
         
-        # Bagi frame menjadi 3 jalur
-        lane_width = width // 3
-        lane_boundaries = [
-            (0, lane_width),
-            (lane_width, lane_width*2),
-            (lane_width*2, width)
-        ]
+        # Gunakan custom boundaries jika ada, jika tidak bagi rata menjadi 3
+        if self.custom_boundaries:
+            if isinstance(self.custom_boundaries[0], (int, float)):
+                # Jika input adalah persentase
+                lane_boundaries = self.get_percentage_boundaries(width, self.custom_boundaries)
+            else:
+                # Jika input adalah koordinat pixel
+                lane_boundaries = self.custom_boundaries
+        else:
+            # Pembagian default menjadi 3 jalur sama besar
+            lane_width = width // 3
+            lane_boundaries = [
+                (0, lane_width),
+                (lane_width, lane_width*2),
+                (lane_width*2, width)
+            ]
         
         # Deteksi objek menggunakan YOLO
         results = self.model(frame)[0]
@@ -151,10 +175,23 @@ class TrafficCongestionDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-# Penggunaan:
+# Contoh penggunaan:
 if __name__ == "__main__":
+    # Contoh 1: Pembagian berdasarkan pixel
+    custom_boundaries_pixel = [
+        (0, 200),           # Jalur 1 dengan lebar 200 pixel
+        (200, 500),         # Jalur 2 dengan lebar 300 pixel
+        (500, 800)          # Jalur 3 dengan lebar 300 pixel
+    ]
+
+    # Contoh 2: Pembagian berdasarkan persentase (30%, 40%, 30%)
+    custom_boundaries_percentage = [30, 40, 30]
+
+    # Pilih salah satu jenis custom boundaries
     detector = TrafficCongestionDetector(
-        model_path='yolov8n.pt',  # Ganti dengan path model Anda
-        video_source=0  # Ganti dengan path video atau nomor kamera
+        model_path='best.pt',  # Ganti dengan path model Anda
+        video_source='video.mp4',  # Ganti dengan path video atau nomor kamera
+        custom_boundaries=custom_boundaries_pixel  # atau custom_boundaries_percentage
     )
+    
     detector.run()
