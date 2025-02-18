@@ -10,7 +10,7 @@ class TrafficCongestionDetector:
         
         # Format: [[(x1_start,y1_start), (x1_end,y1_end)], [(x2_start,y2_start), (x2_end,y2_end)], ...]
         self.lane_points = lane_points
-        self.vehicle_classes = ['car', 'truck', 'bus', 'motorcycle']
+        self.vehicle_classes = ['car', 'motorcycle']
         self.congestion_thresholds = {'low': 0.3, 'medium': 0.6}
 
     def point_to_line_distance(self, point, line_start, line_end):
@@ -52,7 +52,7 @@ class TrafficCongestionDetector:
             vehicles = lane_vehicles[lane_idx]
             if not vehicles:
                 lane_congestion[lane_idx] = {
-                    'level': 'clear',
+                    'level': 'lancar',
                     'percentage': 0,
                     'vehicle_count': 0
                 }
@@ -63,11 +63,11 @@ class TrafficCongestionDetector:
             vehicle_area = sum((x2-x1)*(y2-y1) for x1,y1,x2,y2 in vehicles)
             congestion_percentage = vehicle_area / lane_area
             
-            level = 'congested'
+            level = 'macet'
             if congestion_percentage < self.congestion_thresholds['low']:
-                level = 'clear'
+                level = 'lancar'
             elif congestion_percentage < self.congestion_thresholds['medium']:
-                level = 'moderate'
+                level = 'sedang'
             
             lane_congestion[lane_idx] = {
                 'level': level,
@@ -104,9 +104,9 @@ class TrafficCongestionDetector:
             lane_idx = self.determine_lane(center, self.lane_points)
             
             color = {
-                'clear': (0, 255, 0),
-                'moderate': (0, 255, 255),
-                'congested': (0, 0, 255)
+                'lancar': (0, 255, 0),
+                'sedang': (0, 255, 255),
+                'macet': (0, 0, 255)
             }[congestion_status[lane_idx]['level']]
             
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
